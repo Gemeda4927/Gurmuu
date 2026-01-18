@@ -1,0 +1,63 @@
+# ======================
+# Node / NPM
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ======================
+# Environment variables
+# ======================
+.env
+.env.local
+.env.development
+.env.production
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+
+# ======================
+# Runtime data
+# ======================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ======================
+# Coverage / Testing
+# ======================
+coverage/
+.nyc_output/
+
+# ======================
+# Build output
+# ======================
+dist/
+build/
+
+# ======================
+# OS / Editor files
+# ======================
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ======================
+# Nodemon
+# ======================
+.nodemon*
+
+# ======================
+# MongoDB
+# ======================
+dump/
