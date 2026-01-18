@@ -1,27 +1,28 @@
 const User = require('../models/User');
+const { ROLES, PERMISSIONS } = require('../constants/permissions.constants');
 const { body, validationResult } = require('express-validator');
 
-// Update profile validation rules
+// Validation rules
 const validateUpdateProfile = [
-  body('name')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
-  
-  body('email')
-    .optional()
-    .trim()
-    .isEmail().withMessage('Please provide a valid email')
-    .normalizeEmail(),
+  body('name').optional().trim().isLength({ min: 2, max: 50 }),
+  body('email').optional().trim().isEmail().normalizeEmail(),
+  body('phone').optional().trim(),
+  body('bio').optional().trim().isLength({ max: 250 }),
+  body('social.facebook').optional().trim(),
+  body('social.twitter').optional().trim(),
+  body('social.linkedin').optional().trim(),
+  body('social.instagram').optional().trim(),
+  body('address.street').optional().trim(),
+  body('address.city').optional().trim(),
+  body('address.state').optional().trim(),
+  body('address.zip').optional().trim(),
+  body('address.country').optional().trim(),
 ];
 
-// @desc    Get user profile
-// @route   GET /api/users/profile
-// @access  Private
+// Get user profile
 const getProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-    
     res.status(200).json({
       success: true,
       user
@@ -31,12 +32,9 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
+// Update user profile
 const updateProfile = [
   ...validateUpdateProfile,
-  
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
@@ -47,10 +45,9 @@ const updateProfile = [
         });
       }
 
-      const updateData = {};
-      if (req.body.name) updateData.name = req.body.name;
-      if (req.body.email) updateData.email = req.body.email;
+      const updateData = { ...req.body };
 
+      // Check if email is being changed
       if (req.body.email && req.body.email !== req.user.email) {
         const existingUser = await User.findOne({ 
           email: req.body.email,
@@ -82,22 +79,21 @@ const updateProfile = [
   }
 ];
 
-// @desc    Change password
-// @route   PUT /api/users/change-password
-// @access  Private
-const changePassword = [
-  body('currentPassword')
-    .notEmpty().withMessage('Current password is required'),
-  
+// Change password validation
+const validateChangePassword = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword')
     .notEmpty().withMessage('New password is required')
     .isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
-  
   body('confirmPassword')
     .notEmpty().withMessage('Confirm password is required')
     .custom((value, { req }) => value === req.body.newPassword)
     .withMessage('Passwords do not match'),
+];
 
+// Change password
+const changePassword = [
+  ...validateChangePassword,
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
@@ -133,143 +129,8 @@ const changePassword = [
   }
 ];
 
-// @desc    Get all users (Admin only)
-// @route   GET /api/users
-// @access  Private/Admin
-const getAllUsers = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const users = await User.find().select('-__v');
-    
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      users
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Get user by ID (Admin only)
-// @route   GET /api/users/:id
-// @access  Private/Admin
-const getUserById = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const user = await User.findById(req.params.id);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Deactivate user (Admin only)
-// @route   PUT /api/users/:id/deactivate
-// @access  Private/Admin
-const deactivateUser = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    if (req.user._id.toString() === req.params.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot deactivate your own account'
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'User deactivated successfully',
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Activate user (Admin only)
-// @route   PUT /api/users/:id/activate
-// @access  Private/Admin
-const activateUser = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin only.'
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isActive: true },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'User activated successfully',
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   getProfile,
   updateProfile,
-  changePassword,
-  getAllUsers,
-  getUserById,
-  deactivateUser,
-  activateUser
+  changePassword
 };

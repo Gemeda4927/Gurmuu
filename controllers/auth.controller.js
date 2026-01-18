@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
    Helper: Generate JWT Token
 ========================= */
 const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, {
+  jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key', {
     expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 
@@ -26,7 +26,7 @@ const sendTokenResponse = (user, statusCode, res) => {
    @route   POST /api/auth/signup
    @access  Public (or admin for admin/superadmin)
 ========================= */
-exports.signup = async (req, res, next) => {
+const signup = async (req, res, next) => {
   try {
     const {
       name,
@@ -37,7 +37,7 @@ exports.signup = async (req, res, next) => {
       bio,
       social,
       address,
-      role, // <--- capture role from request
+      role, 
     } = req.body;
 
     // Check if email exists
@@ -77,7 +77,7 @@ exports.signup = async (req, res, next) => {
    @route   POST /api/auth/login
    @access  Public
 ========================= */
-exports.login = async (req, res, next) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -112,7 +112,7 @@ exports.login = async (req, res, next) => {
    @route   GET /api/auth/me
    @access  Private
 ========================= */
-exports.getMe = async (req, res, next) => {
+const getMe = async (req, res, next) => {
   try {
     res.status(200).json({
       success: true,
@@ -128,7 +128,7 @@ exports.getMe = async (req, res, next) => {
    @route   PUT /api/auth/me
    @access  Private
 ========================= */
-exports.updateMe = async (req, res, next) => {
+const updateMe = async (req, res, next) => {
   try {
     // Prevent password updates here
     if (req.body.password) {
@@ -166,4 +166,28 @@ exports.updateMe = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+/* =========================
+   @desc    Logout User
+   @route   POST /api/auth/logout
+   @access  Private
+========================= */
+const logout = async (req, res, next) => {
+  try {
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  signup,    
+  login,
+  getMe,
+  updateMe,
+  logout
 };
