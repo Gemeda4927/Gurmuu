@@ -7,9 +7,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide your name'],
       trim: true,
-      minlength: [2, 'Name must be at least 2 characters'],
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+      minlength: 2,
+      maxlength: 50,
     },
+
     email: {
       type: String,
       required: [true, 'Please provide your email'],
@@ -21,51 +22,95 @@ const userSchema = new mongoose.Schema(
         'Please provide a valid email',
       ],
     },
+
     password: {
       type: String,
       required: [true, 'Please provide a password'],
-      minlength: [6, 'Password must be at least 6 characters'],
-      select: false,
+      minlength: 6,
+      select: false, 
     },
+
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+
+    avatar: {
+      type: String,
+      default: '', // store URL or file path
+    },
+
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 250,
+      default: '',
+    },
+
+    social: {
+      facebook: { type: String, trim: true },
+      twitter: { type: String, trim: true },
+      linkedin: { type: String, trim: true },
+      instagram: { type: String, trim: true },
+    },
+
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      zip: String,
+      country: String,
+    },
+
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['user', 'admin', 'superadmin'],
       default: 'user',
     },
+
     isActive: {
       type: Boolean,
       default: true,
     },
+
     lastLogin: {
       type: Date,
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // createdAt, updatedAt
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
 );
 
-// Hash password before saving
+/* =========================
+   Password hashing before save
+========================= */
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
-    const salt = await bcrypt.genSalt(parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10);
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
+    const salt = await bcrypt.genSalt(saltRounds);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// Compare password method
+/* =========================
+   Compare password method
+========================= */
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remove password from JSON output
+/* =========================
+   Remove sensitive fields from JSON
+========================= */
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
@@ -73,6 +118,4 @@ userSchema.methods.toJSON = function () {
   return obj;
 };
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

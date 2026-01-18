@@ -1,192 +1,169 @@
 const User = require('../models/User');
-const { generateToken } = require('../utils/jwt');
-const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
 
-// Register validation rules
-const validateRegister = [
-  body('name')
-    .trim()
-    .notEmpty().withMessage('Name is required')
-    .isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
-  
-  body('email')
-    .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please provide a valid email')
-    .normalizeEmail(),
-  
-  body('password')
-    .notEmpty().withMessage('Password is required')
-    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  
-  body('confirmPassword')
-    .notEmpty().withMessage('Confirm password is required')
-    .custom((value, { req }) => value === req.body.password)
-    .withMessage('Passwords do not match')
-];
+/* =========================
+   Helper: Generate JWT Token
+========================= */
+const signToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d',
+  });
 
-// Login validation rules
-const validateLogin = [
-  body('email')
-    .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Please provide a valid email')
-    .normalizeEmail(),
-  
-  body('password')
-    .notEmpty().withMessage('Password is required')
-];
+/* =========================
+   Helper: Send Token Response
+========================= */
+const sendTokenResponse = (user, statusCode, res) => {
+  const token = signToken(user._id);
+  res.status(statusCode).json({
+    success: true,
+    token,
+    user,
+  });
+};
 
-// @desc    Register user
-// @route   POST /api/auth/register
-// @access  Public
-const register = [
-  ...validateRegister,
-  
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array()
-        });
-      }
+/* =========================
+   @desc    Signup User (user, admin, superadmin)
+   @route   POST /api/auth/signup
+   @access  Public (or admin for admin/superadmin)
+========================= */
+exports.signup = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone,
+      avatar,
+      bio,
+      social,
+      address,
+      role, // <--- capture role from request
+    } = req.body;
 
-      const { name, email, password } = req.body;
-
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'User already exists with this email'
-        });
-      }
-
-      const user = await User.create({
-        name,
-        email,
-        password
+    // Check if email exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already in use',
       });
-
-      const token = generateToken(user._id);
-
-      user.lastLogin = new Date();
-      await user.save();
-
-      res.status(201).json({
-        success: true,
-        message: 'Registration successful',
-        token,
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        }
-      });
-    } catch (error) {
-      next(error);
     }
+
+    // Only allow valid roles
+    const validRoles = ['user', 'admin', 'superadmin'];
+    const userRole = validRoles.includes(role) ? role : 'user';
+
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      avatar,
+      bio,
+      social,
+      address,
+      role: userRole,
+    });
+
+    sendTokenResponse(user, 201, res);
+  } catch (error) {
+    next(error);
   }
-];
+};
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-const login = [
-  ...validateLogin,
-  
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array()
-        });
-      }
+/* =========================
+   @desc    Login User
+   @route   POST /api/auth/login
+   @access  Public
+========================= */
+exports.login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
 
-      const { email, password } = req.body;
-
-      const user = await User.findOne({ email }).select('+password');
-      
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-
-      if (!user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Account is deactivated. Please contact administrator'
-        });
-      }
-
-      const isPasswordValid = await user.comparePassword(password);
-      if (!isPasswordValid) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-
-      const token = generateToken(user._id);
-
-      user.lastLogin = new Date();
-      await user.save();
-
-      res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        token,
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          lastLogin: user.lastLogin
-        }
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password',
       });
-    } catch (error) {
-      next(error);
     }
-  }
-];
 
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
-const getMe = async (req, res, next) => {
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Update lastLogin
+    user.lastLogin = new Date();
+    await user.save();
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================
+   @desc    Get Current User
+   @route   GET /api/auth/me
+   @access  Private
+========================= */
+exports.getMe = async (req, res, next) => {
   try {
     res.status(200).json({
       success: true,
-      user: req.user
+      user: req.user,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-const logout = async (req, res, next) => {
+/* =========================
+   @desc    Update Current User
+   @route   PUT /api/auth/me
+   @access  Private
+========================= */
+exports.updateMe = async (req, res, next) => {
   try {
+    // Prevent password updates here
+    if (req.body.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password updates are not allowed here',
+      });
+    }
+
+    const allowedFields = [
+      'name',
+      'email',
+      'phone',
+      'avatar',
+      'bio',
+      'social',
+      'address',
+    ];
+
+    const updateData = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) updateData[field] = req.body[field];
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
     res.status(200).json({
       success: true,
-      message: 'Logout successful'
+      user: updatedUser,
     });
   } catch (error) {
     next(error);
   }
-};
-
-module.exports = {
-  register,
-  login,
-  getMe,
-  logout
 };
