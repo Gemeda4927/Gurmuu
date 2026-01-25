@@ -9,7 +9,7 @@ const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
 const permissionRoutes = require('./routes/permission.routes');
 const eventRoutes = require('./routes/event.routes');
-const feedbackRoutes = require('./routes/feedback.routes');
+const blogRoutes = require('./routes/blog.routes'); // <-- added blog routes
 
 const app = express();
 
@@ -34,7 +34,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/permissions', permissionRoutes);
 app.use('/api/v1/events', eventRoutes);
-app.use('/api/v1/feedbacks', feedbackRoutes);
+app.use('/api/v1/blogs', blogRoutes); // <-- mount blog routes here
 
 // Export the app
 module.exports = app;

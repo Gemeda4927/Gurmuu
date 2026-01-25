@@ -3,22 +3,51 @@ const router = express.Router();
 const blogController = require('../controllers/blog.controller');
 const { protect, requireRole, requirePermission } = require('../middleware/auth');
 const { ROLES, PERMISSIONS } = require('../constants/permissions.constants');
-const multer = require('multer');
-const upload = multer({ dest: 'uploads/' }); // basic multer setup
+const upload = require('../utils/multer');
 
-// CREATE BLOG (any authenticated user)
-router.post('/', protect, upload.array('images', 5), blogController.createBlog);
+/**
+ * create blog
+ * role: admin / superadmin
+ * permission: create_content
+ */
+router.post(
+  '/',
+  protect,
+  requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
+  requirePermission(PERMISSIONS.CREATE_CONTENT),
+  upload.fields([
+    { name: 'images', maxCount: 5 }
+  ]),
+  blogController.createBlog
+);
 
-// GET ALL BLOGS
-router.get('/', blogController.getBlogs);
+/**
+ * get all blogs
+ */
+router.get('/', protect, blogController.getBlogs);
 
-// GET SINGLE BLOG
-router.get('/:id', blogController.getBlogById);
+/**
+ * get single blog
+ */
+router.get('/:id', protect, blogController.getBlogById);
 
-// UPDATE BLOG
-router.put('/:id', protect, blogController.updateBlog);
+/**
+ * update blog
+ */
+router.put(
+  '/:id',
+  protect,
+  requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
+  requirePermission(PERMISSIONS.EDIT_CONTENT),
+  upload.fields([
+    { name: 'images', maxCount: 5 }
+  ]),
+  blogController.updateBlog
+);
 
-// SOFT DELETE BLOG
+/**
+ * soft delete blog
+ */
 router.delete(
   '/soft/:id',
   protect,
@@ -27,7 +56,9 @@ router.delete(
   blogController.softDeleteBlog
 );
 
-// RESTORE BLOG
+/**
+ * restore blog
+ */
 router.patch(
   '/restore/:id',
   protect,
@@ -36,7 +67,9 @@ router.patch(
   blogController.restoreBlog
 );
 
-// HARD DELETE BLOG
+/**
+ * hard delete blog
+ */
 router.delete(
   '/hard/:id',
   protect,
