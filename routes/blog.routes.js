@@ -1,55 +1,62 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const blogController = require('../controllers/blog.controller');
-const { protect, requireRole, requirePermission } = require('../middleware/auth');
-const { ROLES, PERMISSIONS } = require('../constants/permissions.constants');
-const upload = require('../utils/multer');
+
+const blogController = require("../controllers/blog.controller");
+const { protect, requireRole, requirePermission } = require("../middleware/auth");
+const { ROLES, PERMISSIONS } = require("../constants/permissions.constants");
+const upload = require("../utils/multer");
 
 /**
- * create blog
- * role: admin / superadmin
- * permission: create_content
+ * CREATE BLOG
  */
 router.post(
-  '/',
+  "/",
   protect,
   requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
   requirePermission(PERMISSIONS.CREATE_CONTENT),
-  upload.fields([
-    { name: 'images', maxCount: 5 }
-  ]),
+
+
+upload.fields([
+  { name: "coverImage", maxCount: 1 },
+  { name: "gallery", maxCount: 10 },
+])
+
+
+,
+
   blogController.createBlog
 );
 
 /**
- * get all blogs
+ * GET ALL BLOGS (PUBLIC)
  */
-router.get('/', protect, blogController.getBlogs);
+router.get("/", blogController.getBlogs);
 
 /**
- * get single blog
+ * GET SINGLE BLOG (PUBLIC)
  */
-router.get('/:id', protect, blogController.getBlogById);
+router.get("/:id", blogController.getBlogById);
 
 /**
- * update blog
+ * UPDATE BLOG
  */
 router.put(
-  '/:id',
+  "/:id",
   protect,
   requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
   requirePermission(PERMISSIONS.EDIT_CONTENT),
   upload.fields([
-    { name: 'images', maxCount: 5 }
+    { name: "coverImage", maxCount: 1 },
+    { name: "gallery", maxCount: 10 },
   ]),
   blogController.updateBlog
 );
 
 /**
- * soft delete blog
+ * SOFT DELETE BLOG
  */
 router.delete(
-  '/soft/:id',
+  "/soft/:id",
   protect,
   requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
   requirePermission(PERMISSIONS.DELETE_CONTENT),
@@ -57,10 +64,10 @@ router.delete(
 );
 
 /**
- * restore blog
+ * RESTORE BLOG
  */
 router.patch(
-  '/restore/:id',
+  "/restore/:id",
   protect,
   requireRole([ROLES.ADMIN, ROLES.SUPERADMIN]),
   requirePermission(PERMISSIONS.MANAGE_CONTENT),
@@ -68,10 +75,10 @@ router.patch(
 );
 
 /**
- * hard delete blog
+ * HARD DELETE BLOG
  */
 router.delete(
-  '/hard/:id',
+  "/hard/:id",
   protect,
   requireRole([ROLES.SUPERADMIN]),
   requirePermission(PERMISSIONS.DELETE_CONTENT),

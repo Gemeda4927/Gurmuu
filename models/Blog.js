@@ -1,51 +1,114 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const blogSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Title is required'],
-    trim: true
-  },
-  content: {
-    type: String,
-    required: [true, 'Content is required']
-  },
-  author: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  category: {
-    type: String,
-    enum: ['Technology', 'Health', 'Education', 'Community', 'Lifestyle', 'News'],
-    required: true
-  },
-  tags: [String],
-  status: {
-    type: String,
-    enum: ['draft', 'published'],
-    default: 'draft'
-  },
-  isFeatured: {
-    type: Boolean,
-    default: false
-  },
-  images: [
-    {
+const blogSchema = new mongoose.Schema(
+  {
+    // ===== Core Content =====
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
+    },
+
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
+
+    excerpt: {
+      type: String,
+      maxlength: 300,
+    },
+
+    content: {
+      type: String,
+      required: true,
+    },
+
+    // ===== Ownership =====
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    // ===== Organization =====
+    category: {
+      type: String,
+      enum: ["Technology", "Health", "Education", "Community", "Lifestyle", "News"],
+      required: true,
+      index: true,
+    },
+
+    tags: {
+      type: [String],
+      index: true,
+    },
+
+    // ===== Publishing Control =====
+    status: {
+      type: String,
+      enum: ["draft", "published"],
+      default: "draft",
+      index: true,
+    },
+
+    publishedAt: {
+      type: Date,
+    },
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    // ===== Media =====
+    coverImage: {
       url: String,
       public_id: String,
-      original_name: String,
-      size: Number,
-      uploadedAt: { type: Date, default: Date.now }
-    }
-  ],
-  isDeleted: {
-    type: Boolean,
-    default: false
+    },
+
+    gallery: [
+      {
+        url: String,
+        public_id: String,
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // ===== Soft Delete =====
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    deletedAt: {
+      type: Date,
+    },
   },
-  deletedAt: Date
-}, {
-  timestamps: true
+  {
+    timestamps: true,
+  }
+);
+
+// ===== Indexes =====
+blogSchema.index({ title: "text", content: "text" });
+
+// ===== Middleware =====
+blogSchema.pre("save", function (next) {
+  if (this.status === "published" && !this.publishedAt) {
+    this.publishedAt = new Date();
+  }
+  next();
 });
 
-module.exports = mongoose.model('Blog', blogSchema);
+module.exports = mongoose.model("Blog", blogSchema);
