@@ -94,18 +94,33 @@ exports.createBlog = async (req, res) => {
  * GET ALL BLOGS (PUBLIC)
  * =====================================
  */
+/**
+ * =====================================
+ * GET ALL BLOGS (PUBLIC)
+ * Includes deleted & non-deleted
+ * =====================================
+ */
 exports.getBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find({ isDeleted: false, status: "published" })
+    const blogs = await Blog.find() 
       .populate("author", "name email")
       .sort({ publishedAt: -1 });
 
-    res.status(200).json({ success: true, count: blogs.length, blogs });
+    res.status(200).json({
+      success: true,
+      count: blogs.length,
+      blogs,
+    });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch blogs", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch blogs",
+      error: error.message,
+    });
   }
 };
+
 
 /**
  * =====================================
